@@ -435,92 +435,7 @@ task.spawn(function()
     end
 end)
 
-----------------------------------------------------------------
--- МОБИЛЬНЫЙ ПАТЧ (УПРАВЛЕНИЕ, DRAG И СВОРАЧИВАНИЕ)
-----------------------------------------------------------------
-local UIS = game:GetService("UserInputService")
-
--- 1. Мобильное перетаскивание главного окна (MainFrame)
-local dragToggle = nil
-local dragSpeed = 0.1
-local dragStart = nil
-local startPos = nil
-
-local function updateInput(input)
-    local delta = input.Position - dragStart
-    local position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    game:GetService("TweenService"):Create(MainFrame, TweenInfo.new(dragSpeed), {Position = position}):Play()
-end
-
-MainFrame.InputBegan:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then 
-        dragToggle = true
-        dragStart = input.Position
-        startPos = MainFrame.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragToggle = false
-            end
-        end)
-    end
-end)
-
-UIS.InputChanged:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        if dragToggle then
-            updateInput(input)
-        end
-    end
-end)
-
--- 2. Создание плавающей круглой кнопки сворачивания для мобилок
-local MobileToggleBtn = Instance.new("TextButton")
-MobileToggleBtn.Name = "MobileToggle"
-MobileToggleBtn.Size = UDim2.new(0, 45, 0, 45)
-MobileToggleBtn.Position = UDim2.new(0, 10, 0, 10)
-MobileToggleBtn.BackgroundColor3 = Color3.fromRGB(26, 28, 36)
-MobileToggleBtn.Text = "Δ"
-MobileToggleBtn.TextColor3 = Color3.fromRGB(0, 180, 255)
-MobileToggleBtn.TextSize = 22
-MobileToggleBtn.Font = Enum.Font.GothamBold
-MobileToggleBtn.Parent = ScreenGui -- Привязываем к твоему ScreenGui
-
--- Скругляем до круга
-local ToggleCorner = Instance.new("UICorner")
-ToggleCorner.CornerRadius = UDim.new(1, 0)
-ToggleCorner.Parent = MobileToggleBtn
-
-local ToggleStroke = Instance.new("UIStroke")
-ToggleStroke.Color = Color3.fromRGB(0, 180, 255)
-ToggleStroke.Thickness = 2
-ToggleStroke.Parent = MobileToggleBtn
-
--- 3. Делаем кнопку тоже перетаскиваемой (чтобы не мешала на экране)
-local btnDragToggle = false
-local btnDragStart, btnStartPos
-
-MobileToggleBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
-        btnDragToggle = true
-        btnDragStart = input.Position
-        btnStartPos = MobileToggleBtn.Position
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then btnDragToggle = false end
-        end)
-    end
-end)
-
-UIS.InputChanged:Connect(function(input)
-    if (input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseMovement) and btnDragToggle then
-        local delta = input.Position - btnDragStart
-        MobileToggleBtn.Position = UDim2.new(btnStartPos.X.Scale, btnStartPos.X.Offset + delta.X, btnStartPos.Y.Scale, btnStartPos.Y.Offset + delta.Y)
-    end
-end)
-
--- 4. Сворачивание/Разворачивание по быстрому тапу (исключаем конфликт с перетаскиванием)
-local tapTime = 0
-MobileToggleBtn.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
+-    if input.UserInputType == Enum.UserInputType.Touch or input.UserInputType == Enum.UserInputType.MouseButton1 then
         tapTime = tick()
     end
 end)
@@ -531,37 +446,5 @@ MobileToggleBtn.InputEnded:Connect(function(input)
         if tick() - tapTime < 0.2 then
             MainFrame.Visible = not MainFrame.Visible
         end
-    end
-end)
-
-
--- ОБРАБОТКА АИМБОТА (Заточено под мобильную камеру)
-RunService.RenderStepped:Connect(function()
-    if not scriptRunning or not aimbotActive then return end
-    
-    local target = nil
-    local shortestDist = aimbotFov
-    local screenCenter = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-    
-    for _, pl in ipairs(Players:GetPlayers()) do
-        if pl ~= LocalPlayer and pl.Character and pl.Character:FindFirstChild("Head") then
-            local head = pl.Character.Head
-            local pos, onScreen = Camera:WorldToViewportPoint(head.Position)
-            
-            if onScreen then
-                local dist = (Vector2.new(pos.X, pos.Y) - screenCenter).Magnitude
-                if dist < shortestDist then
-                    target = head
-                    shortestDist = dist
-                end
-            end
-        end
-    end
-    
-    if target then
-        -- На смартфонах мышь (mouse_moverel) не работает адекватно. 
-        -- Плавно поворачиваем саму камеру к голове врага.
-        local targetCFrame = CFrame.new(Camera.CFrame.Position, target.Position)
-        Camera.CFrame = Camera.CFrame:Lerp(targetCFrame, aimbotSmoothness)
     end
 end)
